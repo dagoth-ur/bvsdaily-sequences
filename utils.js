@@ -76,7 +76,61 @@ function parseTeamPage() { "use strict";
     }
     return { curteam };
 }
+//}}}
 
+//{{{ Extra actions
+function FormUncheck(strFormName, strInputName, strInputValue) {
+    var strXPath = "";
+ 
+    // Form name is optional, include it if necessary
+    if (strFormName)
+        strXPath += '//form[@name=\'' + strFormName + '\']';
+ 
+    // Input name is mandatory (else we cannot find the input box...)
+    strXPath += '//input[@name=\'' + strInputName + '\'';
+ 
+    // Input value is also optional
+    if (strInputValue)
+        strXPath += ' and @value=\'' + strInputValue + '\'';
+    strXPath += ']';
+ 
+    var elem = document.evaluate(strXPath, document, null, 
+                                 XPathResult.ANY_UNORDERED_NODE_TYPE, null)
+        .singleNodeValue;
+ 
+    // Return without action if element does not exist or is disabled
+    if (!elem || elem.disabled)
+        return false;
+ 
+    // Otherwise check the box and return true
+    elem.checked = false;
+    return true;
+}
+ 
+function FormCheckById(strFormName, strInputId, checked) {
+    if (checked == undefined)
+        checked = true;
+    var strXPath = "";
+ 
+    // Form name is optional, include it if necessary
+    if (strFormName)
+        strXPath += '//form[@name=\'' + strFormName + '\']';
+ 
+    // Input name is mandatory (else we cannot find the input box...)
+    strXPath += '//input[@id=\'' + strInputId + '\']';
+ 
+    var elem = document.evaluate(strXPath, document, null, 
+                                 XPathResult.ANY_UNORDERED_NODE_TYPE, null)
+        .singleNodeValue;
+ 
+    // Return without action if element does not exist or is disabled
+    if (!elem || elem.disabled)
+        return false;
+ 
+    // Otherwise check the box and return true
+    elem.checked = checked;
+    return true;
+}
 //}}}
 
 /**
