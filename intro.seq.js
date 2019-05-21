@@ -13,7 +13,9 @@ function DocRegex(re, idx) { "use strict";
     dbg('Regexing: ' + re);
     var result = re.exec(document.body.innerText);
     dbg('Regex result: ' + result);
-    if (idx == undefined || typeof idx != 'number' || result == null) {
+    if (idx == undefined)
+        idx = 0;
+    if (result == null) {
         return result;
     } else {
         return result[idx];
@@ -24,7 +26,46 @@ function DocReInt(re) { "use strict";
     return parseInt(DocRegex(re, 1));
 }
 
+//{{{ XPath and QuerySelector helpers
+function $x(xpath, context) { "use strict";
+    if (context == undefined)
+        context = document;
+    var result = document.evaluate(xpath, context, null, 
+                                   XPathResult.ANY_UNORDERED_NODE_TYPE, null);
+    return result.singleNodeValue;
+}
+
+function $$x(xpath, context) { "use strict";
+    if (context == undefined)
+        context = document;
+    var result = document.evaluate(xpath, context, null,
+                                   XPathResult.UNORDERED_NODE_ITERATOR_TYPE,
+                                   null);
+    var retarr = [];
+    var res;
+    while ((res = result.iterateNext()))
+        retarr.push(res);
+    return retarr;
+}
+
+function $(selector, context) { "use strict";
+    if (context == undefined)
+        context = document;
+    return context.querySelector(selector);
+}
+
+function $$(selector, context) { "use strict";
+    if (context == undefined)
+        context = document;
+    return Array.from(context.querySelectorAll(selector));
+}
+//}}}
+
 //{{{2 Parsers for various pages
+function BvSPlayerId() {
+    return $('input[name=player]').value;
+}
+
 // function parseTeamSelection
 //2}}}
 
@@ -109,8 +150,30 @@ function DailyStorage(localstorage_prefix, dayroll_vals) { "use strict";
     };
     return new Proxy({}, handler);
 }
+
+/** 
+ * Wraps around DailyStorage. Adds -<playername> to the prefix.
+ */
+function PlayerStorage(localstorage_prefix, dayroll_vals) {
+    return DailyStorage(localstorage_prefix + '-' + BvSPlayerId(),
+                        dayroll_vals);
+}
 //2}}}
 //1}}}
+
+//@NewTask
+//@TaskName: Awesome cat
+GoPage('main');
+IncrementTaskIf(!DocTest('Look at this cat.'));
+FormSetValue('videochallenge', 'videoroll', 'yes');
+FormSubmit('videochallenge');
+
+//@NewTask
+//@TaskName: Bonus code
+GoPage('main');
+IncrementTaskIf(!DocRegex(/Collect your Bonus Stamina/));
+$('input[name=bonusget]').scrollIntoView();
+ShowMsg('Type ze bonus code.');
 
 //@NewTask
 //@TaskName: Breakfast bingo
@@ -130,6 +193,18 @@ FormCheck('dobfast', 'bingo-b5');
 
 FormSubmit('dobfast');
 
+//@NewTask
+//@TaskName: Shorty
+
+TeamChange('Shorty');
+
+//@NewTask
+//@TaskName: Party
+
+GoPage('ph_partyroom');
+IncrementTaskIf(!DocTest('Parties today: 0'));
+FormCheck('pr', 'partytype', 'Bash');
+FormSubmit('pr');
 
 //@NewTask
 //@TaskName: Pachinko
@@ -178,19 +253,6 @@ if (DocTest('You are on Ball')) {
 }
 
 IncrementTask();
-
-//@NewTask
-//@TaskName: Shorty
-
-TeamChange('Shorty');
-
-//@NewTask
-//@TaskName: Party
-
-GoPage('ph_partyroom');
-IncrementTaskIf(!DocTest('Parties today: 0'));
-FormCheck('pr', 'partytype', 'Bash');
-FormSubmit('pr');
 
 //@NewTask
 //@TaskName: Strawberry Team
@@ -291,6 +353,31 @@ if (FormCheck('ramen', 'ramentobuy', 'app'))
 IncrementTask();
 
 //@NewTask
+//@TaskName: Credit pull
+
+GoPage('marketplace');
+IncrementTaskIf(DocTest('Used Today!'));
+ShowMsg('uojezu');
+
+//@NewTask
+//@TaskName: PizzaWitch
+
+GoPage('pizzawitch');
+if (!DocTest("Work a shift on the other Riders' Rides"))
+    FormSubmit('workinback');
+
+var deliveries = DocReInt(/Delivery \((\d+) Remaining\)/);
+IncrementTaskIf(deliveries === 0);
+
+var tips_str = DocRegex(/Current Tips: ([0-9,]+)/, 1).replace(',','');
+var tips = parseInt(tips_str);
+var bribe = DocReInt(/\bBribe[^(]*\(-(\d+) Tips\/Shift/);
+var max_bribes = Math.trunc(tips / bribe);
+FormCheck('doshift', 'shiftbribe', 1);
+FormSetValue('doshift', 'shiftcount', Math.min(deliveries, max_bribes));
+FormSubmit('doshift');
+
+//@NewTask
 //@TaskName: Tattoo thing
 // Grinding for ze trophy
 
@@ -301,16 +388,68 @@ ShowMsg('Fix this tomorrow (or today, I guess)');
 
 GoPage('fields');
 
-if (DocTest('Use Field Oscillator'))
-    FormSubmit('oscillator');
+var store = PlayerStorage('daily_fields', { drawn_essence : false
+                                          , did_actions   : false });
 
 // We either start on the essence field, in which case we want to draw,
 // go to farming field and spend free actions. Or we start on the farming 
 // field and we want to spend actions first to avoid double field change.
+// Persistent storage is required to do this, I think.
 
-ShowMsg('Carry on');
+if (DocTest('Use Field Oscillator'))
+    FormSubmit('oscillator');
+if (DocTest('Enough has collected to fill a single vial'))
+    FormSubmit('lifestream');
+if (DocTest('No more Essence can be collected today')) {
+    store.drawn_essence = true;
+    IncrementTaskIf(store.did_actions);
+    SetField('Brilliant', 'Delicious', 'Paradise');
+}
+if ($('form[name=search1]')) {
+    if (!DocTest('Free actions:')) {
+        store.did_actions = true;
+        IncrementTaskIf(store.drawn_essence);
+        SetField('Brilliant', 'Delicious', 'Dance Floor');
+    }
+    var free_acts = DocReInt(/Free actions: (\d+)/);
+    if (free_acts >= 10 && DocTest('Turn MegaActions On')
+            || free_acts < 10 && DocTest('Turn MegaActions Off')) {
+        FormSubmit('megaactionflip');
+    } else {
+        FormSubmit('search1');
+    }
+}
+
+//@NewTask
+//@TaskName: Nom team
+
+TeamChange('Tsukasa', 'Yuki');
 
 //@NewTask
 //@TaskName: Nomming
 
-ShowMsg('TODO: finish this');
+GoPage('consumables');
+ShowMsg('Eat things');
+
+//@NewTask
+//@TaskName: Larry und Haro
+
+TeamChange('Larry', 'Haro');
+
+//@NewTask
+//@TaskName: Run missions
+
+GoPage('missions');
+if (LocationTest('missionstart.html')) {
+    if ($('form[name=misforms]'))
+        FormSubmit('misforms');
+    if (DocTest('MegaMissions (Inactive)'))
+        FormSubmit('megamis');
+    FormSubmit('misformwasteland');
+}
+
+if (LocationTest('mission1.html') && DocTest('Only One S-Rank per day!')) {
+    FormSubmit('backmission');
+}
+
+ShowMsg('Smash those hotkeys');
