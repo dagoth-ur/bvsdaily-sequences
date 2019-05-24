@@ -1,6 +1,16 @@
 // vim: foldmethod=marker
 
 // Useful stuffs that can be put into the @ SequenceCode section.
+// Stuffs include:
+// - Functions for running regexes on document text.
+// - Function for getting current player name.
+// - Helper functions for running XPath or query selectors.
+// - Improved team switching (that uses quickteam when available).
+// - Some extra actions for manipulating forms.
+// - A storage object that forwards all its property access to local storage,
+//   serializes and unserializes the values into/from JSON, and can be set-up
+//   to set certain properties after every dayroll.
+//   (Though the dayroll thing might not work for everyone. See comments.)
 
 //{{{1 Utilities
 
