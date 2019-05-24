@@ -1,43 +1,53 @@
-// vim: foldmethod=marker
 //@SequenceName: Daily Intro
+// vim: foldmethod=marker
 
 //@SequenceCode
 
 //{{{1 Utilities
 
-function dbg(msg) {
-    console.log(msg);
+function dbg(...msg) {
+    // console.log(...msg);
 }
 
-function DocRegex(re, idx) { "use strict";
+function DocRegex(re, idx) {
     dbg('Regexing: ' + re);
     var result = re.exec(document.body.innerText);
     dbg('Regex result: ' + result);
-    if (idx == undefined)
-        idx = 0;
-    if (result == null) {
+    if (idx == undefined || typeof idx != 'number' || result == null) {
         return result;
     } else {
         return result[idx];
     }
 }
 
-function DocReInt(re) { "use strict";
+function DocReInt(re) {
     return parseInt(DocRegex(re, 1));
 }
 
+function arrEq(arr1, arr2) {
+    if (arr1 === arr2)
+        return true;
+    if (arr1.length !== arr2.length)
+        return false;
+    for (let i = 0; i < arr1.length; ++i) {
+        if (arr1[i] !== arr2[i])
+            return false;
+    }
+    return true;
+}
+
+function BvSPlayerId() {
+    return $('input[name=player]').value;
+}
+
 //{{{ XPath and QuerySelector helpers
-function $x(xpath, context) { "use strict";
-    if (context == undefined)
-        context = document;
+function $x(xpath, context=document) {
     var result = document.evaluate(xpath, context, null, 
                                    XPathResult.ANY_UNORDERED_NODE_TYPE, null);
     return result.singleNodeValue;
 }
 
-function $$x(xpath, context) { "use strict";
-    if (context == undefined)
-        context = document;
+function $$x(xpath, context=document) {
     var result = document.evaluate(xpath, context, null,
                                    XPathResult.UNORDERED_NODE_ITERATOR_TYPE,
                                    null);
@@ -48,28 +58,183 @@ function $$x(xpath, context) { "use strict";
     return retarr;
 }
 
-function $(selector, context) { "use strict";
-    if (context == undefined)
-        context = document;
+function $(selector, context=document) {
     return context.querySelector(selector);
 }
 
-function $$(selector, context) { "use strict";
-    if (context == undefined)
-        context = document;
+function $$(selector, context=document) {
     return Array.from(context.querySelectorAll(selector));
 }
 //}}}
 
-//{{{2 Parsers for various pages
-function BvSPlayerId() {
-    return $('input[name=player]').value;
+//{{{2 Better team switching (uses quickteams when available)
+/**
+ * When instantiated on the team page, parses the current team, list of
+ * quickteams, available allies. Provides methods for checking availability
+ * of allies and switching teams using quickteam when possible.
+ */
+class TeamPage {
+    constructor() {
+        const self = this;
+        var curteam_node = $x(
+            '//b[text()="-Current Team-"]/following-sibling::center');
+        self.curteam = [];
+        if (curteam_node) {
+            self.curteam = $$x('.//td/b', curteam_node)
+                .map((node) => node.innerText);
+            self.curteam.sort();
+        }
+        var qteam_labels = $$x('//td[b[text()="QuickTeams"]]/label');
+        self.qteams = [];
+        for (let i = 1; i < qteam_labels.length; ++i) {
+            // dbg(`Label: ${qteam_labels[i].innerText}`);
+            let qt = qteam_labels[i].innerText.split(':')[1].split(',')
+                .map((s) => s.split('Lvl.')[0].trim());
+            if (qt[0] === 'Solo (No Team!)')
+                qt = [];
+            qt.sort(); // Probably unnecessary but whatever
+            let checkid = qteam_labels[i].getAttribute('for');
+            self.qteams.push({ team : qt
+                             , checkid });
+        }
+        var ally_labels = $$x('//div[@id="teamrep"]//label[b]');
+        self.allies = [];
+        for (let i = 0; i < ally_labels.length; ++i) {
+            let name = ally_labels[i].innerText.split('(')[0].trim();
+            let [base, lvl] = name.split('Lvl.').map((s) => s.trim());
+            lvl = parseInt(lvl) || 1;
+            let basename = name.split('Lvl.')[0].trim();
+            let checkid = ally_labels[i].getAttribute('for');
+            self.allies.push({name, basename, lvl, checkid});
+        }
+        return self;
+    }
+
+    hasAlly(name_prefix) {
+        return (
+            -1 !== this.allies.findIndex(
+                (a) => a.name.startsWith(name_prefix)));
+    }
+
+    findTeam(...team) {
+        let found = new Set();
+        for (let i = 0; i < team.length; ++i) {
+            let idx = this.allies.findIndex(
+                (a, idx) => (a.name.startsWith(team[i]) && !found.has(idx)));
+            if (idx === -1)
+                return undefined;
+            found.add(idx);
+        }
+        return Array.from(found).map((i) => this.allies[i]);
+    }
+
+    _findQteam(team) {
+        let basenames = team.map((a) => a.basename);
+        basenames.sort();
+        dbg('_findQteam basenames: ', basenames);
+        return this.qteams.find((qt) => arrEq(basenames, qt.team));
+    }
+
+    _matchCurrent(team) {
+        let cursorted = this.curteam.slice().sort();
+        return arrEq(cursorted, team.map((a) => a.name).sort());
+    }
+
+    tryChange(...team) {
+        if (team.length > 3)
+            return;
+        let team_descs = this.findTeam(...team);
+        dbg(`Team_descs: `, team_descs);
+        if (team_descs == undefined)
+            return;
+        IncrementTaskIf(this._matchCurrent(team_descs));
+        let qt = this._findQteam(team_descs);
+        dbg('Qteam: ', qt);
+        if (qt) {
+            FormCheckById('qteam', qt.checkid);
+            FormSubmit('qteam');
+        } else {
+            for (let ally of team_descs)
+                FormCheckById(null, ally.checkid);
+            FormSubmit('maketeam');
+        }
+    }
+
+    /**
+     * Like tryChange, but throws an exception upon failure.
+     */
+    change(...team) {
+        this.tryChange(...team);
+        throw new Error(`Cannot form team: ${team}`);
+    }
 }
 
-// function parseTeamSelection
+function TeamChange(...team) {
+    GoPage('team');
+    if (FormTest('conteam'))
+        FormSubmit('conteam');
+    var t = new TeamPage();
+    (new TeamPage()).change(...team);
+}
+
 //2}}}
 
-//{{{2 DailyStorage
+//{{{ Extra actions
+function FormUncheck(strFormName, strInputName, strInputValue) {
+    var strXPath = "";
+ 
+    // Form name is optional, include it if necessary
+    if (strFormName)
+        strXPath += '//form[@name=\'' + strFormName + '\']';
+ 
+    // Input name is mandatory (else we cannot find the input box...)
+    strXPath += '//input[@name=\'' + strInputName + '\'';
+ 
+    // Input value is also optional
+    if (strInputValue)
+        strXPath += ' and @value=\'' + strInputValue + '\'';
+    strXPath += ']';
+ 
+    var elem = document.evaluate(strXPath, document, null, 
+                                 XPathResult.ANY_UNORDERED_NODE_TYPE, null)
+                                .singleNodeValue;
+ 
+    // Return without action if element does not exist or is disabled
+    if (!elem || elem.disabled)
+        return false;
+ 
+    // Otherwise check the box and return true
+    elem.checked = false;
+    return true;
+}
+ 
+function FormCheckById(strFormName, strInputId, checked) {
+    if (checked == undefined)
+        checked = true;
+    var strXPath = "";
+ 
+    // Form name is optional, include it if necessary
+    if (strFormName)
+        strXPath += '//form[@name=\'' + strFormName + '\']';
+ 
+    // Input name is mandatory (else we cannot find the input box...)
+    strXPath += '//input[@id=\'' + strInputId + '\']';
+ 
+    var elem = document.evaluate(strXPath, document, null, 
+                                 XPathResult.ANY_UNORDERED_NODE_TYPE, null)
+        .singleNodeValue;
+ 
+    // Return without action if element does not exist or is disabled
+    if (!elem || elem.disabled)
+        return false;
+ 
+    // Otherwise check the box and return true
+    elem.checked = checked;
+    return true;
+}
+//}}}
+
+//{{{ DailyStorage
 /**
  * Returns time & date of dayroll preceding the given timestamp.
  * Argument defaults to current time.
@@ -85,7 +250,7 @@ function BvSPlayerId() {
  * switch and dayroll. This shouldn't make a difference when comparing current
  * time with previous dayroll time. Hopefully.
  */
-function LastBvSDayroll(now) { "use strict";
+function LastBvSDayroll(now) {
     const dayroll_time = 5 * 60 * 60 + 15 * 60; // Seconds since midnight
     if (now == undefined)
         now = new Date();
@@ -101,7 +266,8 @@ function LastBvSDayroll(now) { "use strict";
     var dayroll_offs = time_offs - dayroll_time;
     if (dayroll_offs < 0)
         dayroll_offs += 24 * 60 * 60;
-    return new Date(now.getTime() - 1000 * dayroll_offs);
+    var ret_secs = Math.floor(now.getTime() / 1000) - dayroll_offs;
+    return new Date(ret_secs * 1000);
 }
 
 /** 
@@ -111,11 +277,14 @@ function LastBvSDayroll(now) { "use strict";
  * Properties are stored as <localstorage_prefix>.<property_name>
  * __last_dayroll__ property is reserved
  */
-function DailyStorage(localstorage_prefix, dayroll_vals) { "use strict";
+function DailyStorage(localstorage_prefix, dayroll_vals) {
     var last_store_dayroll_str = 
             localStorage.getItem(`${localstorage_prefix}.__last_dayroll__`);
     var last_store_dayroll = new Date(parseInt(last_store_dayroll_str || 0));
+    dbg(`Last stored dayroll for ${localstorage_prefix}:`
+       +` ${last_store_dayroll_str}`);
     var last_dayroll = LastBvSDayroll();
+    dbg(`Last calculated dayroll: ${last_dayroll.getTime()}`);
     if (last_dayroll> last_store_dayroll) {
         for (let p in dayroll_vals) {
             if (!dayroll_vals.hasOwnProperty(p))
@@ -136,12 +305,15 @@ function DailyStorage(localstorage_prefix, dayroll_vals) { "use strict";
     var handler = {
         set(target, prop, newval) {
             check_prop(prop);
+            dbg(`Setting ${localstorage_prefix}.${prop} to ${newval}`);
             localStorage.setItem(`${localstorage_prefix}.${prop}`, 
                                  JSON.stringify(newval));
         },
         get(target, prop) {
-            return JSON.parse(
+            var ret = JSON.parse(
                 localStorage.getItem(`${localstorage_prefix}.${prop}`));
+            dbg(`Getting ${ret} from ${localstorage_prefix}.${prop}`);
+            return ret;
         },
         deleteProperty(target, prop) {
             check_prop(prop);
@@ -158,7 +330,8 @@ function PlayerStorage(localstorage_prefix, dayroll_vals) {
     return DailyStorage(localstorage_prefix + '-' + BvSPlayerId(),
                         dayroll_vals);
 }
-//2}}}
+//}}}
+
 //1}}}
 
 //@NewTask
@@ -180,7 +353,8 @@ ShowMsg('Type ze bonus code.');
 
 GoPage('breakfast');
 
-IncrementTaskIf(DocTest('Breakfast Results:'));
+IncrementTaskIf(DocTest('Breakfast Results:')
+                || DocTest('Breakfast has been served!'));
 
 FormCheck('dobfast', 'bfconfirm');
 FormCheck('dobfast', 'tr-bfast');
@@ -255,6 +429,13 @@ if (DocTest('You are on Ball')) {
 IncrementTask();
 
 //@NewTask
+//@TaskName: Summoning
+
+GoPage('summons');
+IncrementTaskIf(!FormCheck('summonsummon', 'summonname', 'Sickle Weasel'))
+FormSubmit('summonsummon');
+
+//@NewTask
 //@TaskName: Strawberry Team
 
 TeamChange('Strawberry', 'Shorty', 'Robogirl');
@@ -279,7 +460,7 @@ FormSubmit('arenafight');
 GoPage('kaiju');
 
 if (!DocTest("You had this Kaiju's drop"))
-    ShowMsg("ZOMG, drop you don't have yet. Do this manually");
+    ShowMsg("ZOMG, drop you don't have yet. Do this manually.");
 
 var times = DocReInt(/times fought today: (\d+)/);
 IncrementTaskIf(times >= 6);
@@ -305,12 +486,14 @@ FormSubmit('kat');
 //@NewTask
 //@TaskName: Switching to solo
 
+TeamChange();
+/*
 GoPage('team');
 if (FormTest('conteam'))
     FormSubmit('conteam');
 IncrementTaskIf(DocTest('<b>Solo</b> - no Teammates, no Bonus'));
 FormSubmit('maketeam');
-
+*/
 
 //@NewTask
 //@TaskName: Village actions
@@ -345,8 +528,10 @@ if (DocTest('Have some tasty Lemonade!')) {
 }
 if (DocTest('Go to a Black Stones Concert!'))
     FormSubmit('blackstones');
+/* Pointless with max level.
 if (DocTest('Study at the Pandora Library!'))
     FormSubmit('pandtime');
+*/
 if (FormCheck('ramen', 'ramentobuy', 'app'))
     FormSubmit('ramen');
 
@@ -357,7 +542,7 @@ IncrementTask();
 
 GoPage('marketplace');
 IncrementTaskIf(DocTest('Used Today!'));
-ShowMsg('uojezu');
+FormSubmit('freepull');
 
 //@NewTask
 //@TaskName: PizzaWitch
@@ -381,7 +566,10 @@ FormSubmit('doshift');
 //@TaskName: Tattoo thing
 // Grinding for ze trophy
 
-ShowMsg('Fix this tomorrow (or today, I guess)');
+GoPage('tattoo');
+IncrementTaskIf(DocTest('Action done today!'));
+FormCheckById('tattootrain', 'tuptat');
+FormSubmit('tattootrain');
 
 //@NewTask
 //@TaskName: Field actions
@@ -403,16 +591,19 @@ if (DocTest('Enough has collected to fill a single vial'))
 if (DocTest('No more Essence can be collected today')) {
     store.drawn_essence = true;
     IncrementTaskIf(store.did_actions);
+    // ShowMsg('b-d-p'); 
     SetField('Brilliant', 'Delicious', 'Paradise');
 }
 if ($('form[name=search1]')) {
-    if (!DocTest('Free actions:')) {
+    if (!DocTest('Free Actions:')) {
         store.did_actions = true;
         IncrementTaskIf(store.drawn_essence);
+        // ShowMsg('b-d-d'); 
         SetField('Brilliant', 'Delicious', 'Dance Floor');
     }
-    var free_acts = DocReInt(/Free actions: (\d+)/);
+    var free_acts = DocReInt(/Free Actions: (\d+)/);
     if (free_acts >= 10 && DocTest('Turn MegaActions On')
+            || DocTest('x50 Stamina / FA cost')
             || free_acts < 10 && DocTest('Turn MegaActions Off')) {
         FormSubmit('megaactionflip');
     } else {
