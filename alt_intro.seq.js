@@ -1,5 +1,7 @@
-//@SequenceName: Daily Intro
+//@SequenceName: Alt Daily Intro
 // vim: foldmethod=marker
+
+// Stuff copy pasted from the intro sequence for main char
 
 //@SequenceCode
 
@@ -349,38 +351,6 @@ $('input[name=bonusget]').scrollIntoView();
 ShowMsg('Type ze bonus code.');
 
 //@NewTask
-//@TaskName: Breakfast bingo
-
-GoPage('breakfast');
-
-IncrementTaskIf(DocTest('Breakfast Results:')
-                || DocTest('Breakfast has been served!'));
-
-FormCheck('dobfast', 'bfconfirm');
-FormCheck('dobfast', 'tr-bfast');
-
-FormCheck('dobfast', 'bingo-b1');
-FormUncheck('dobfast', 'bingo-b2');
-FormCheck('dobfast', 'bingo-b3');
-FormUncheck('dobfast', 'bingo-b4');
-FormCheck('dobfast', 'bingo-b5');
-
-FormSubmit('dobfast');
-
-//@NewTask
-//@TaskName: Shorty
-
-TeamChange('Shorty');
-
-//@NewTask
-//@TaskName: Party
-
-GoPage('ph_partyroom');
-IncrementTaskIf(!DocTest('Parties today: 0'));
-FormCheck('pr', 'partytype', 'Bash');
-FormSubmit('pr');
-
-//@NewTask
 //@TaskName: Pachinko
 
 // Test if we're at machine.
@@ -410,66 +380,43 @@ if (FormCheckById('playapachi', 'pmach1'))
     FormSubmit('playapachi');
 
 //@NewTask
-//@TaskName: Tsukiball
+//@TaskName: Lottery
+GoPage('ph_lottery');
 
-GoPage('ph_tsukiball');
-
-if (FormCheck('skic', 'tixtype', 'plastic'))
-    FormSubmit('skic');
-
-if (DocTest('You are on Ball')) {
-    FormCheck('skib', 'rolltype', 'high');
-    FormCheck('skib', 'doemall');
-    FormSubmit('skib');
-} else if (!DocTest('Final Score:')) {
-    FormSelect('skib', 'megatsuki', false, 'Play a MegaGame');
-    FormSubmit('skib');
-}
-
-IncrementTask();
+var ph_ryo = DocReInt(/Free Party House Ryo: (\d+)/);
+IncrementTaskIf(ph_ryo <= 0);
+var ticket_cost = DocReInt(/Tickets are (\d+) Ryo a pop./);
+FormSetValue('el', 'tix2buy', Math.ceil(ph_ryo / ticket_cost));
+FormSubmit('el');
 
 //@NewTask
-//@TaskName: Summoning
+//@TaskName: First Loser
 
-GoPage('summons');
-IncrementTaskIf(!FormCheck('summonsummon', 'summonname', 'Sickle Weasel'))
-FormSubmit('summonsummon');
-
-//@NewTask
-//@TaskName: Strawberry Team
-
-TeamChange('Strawberry', 'Shorty', 'Robogirl');
-
-//@NewTask
-//@TaskName: Arena stuff
-
-GoPage('arena');
-
-if (DocTest('buy-ins so far today: 0')
-        || DocTest('buy-ins so far today: 1'))
-    FormSubmit('buyfights');
-
-IncrementTaskIf(!DocTest('Fights today: <b>0</b>'));
-
-FormCheck('arenafight', 'megaarena');
-FormSubmit('arenafight');
+GoPage('ph_firstloser');
+IncrementTaskIf(DocTest('Entered!') 
+                || DocRegex(/This IP has already entered/));
+FormSetValue('losers', 'loser_entry', 500);
+FormSubmit('losers');
 
 //@NewTask
 //@TaskName: Fight kaiju
 
 GoPage('kaiju');
 
+/* Terri not available.
 if (!DocTest("You had this Kaiju's drop"))
     ShowMsg("ZOMG, drop you don't have yet. Do this manually.");
+*/
 
 var times = DocReInt(/times fought today: (\d+)/);
-IncrementTaskIf(times >= 6);
+IncrementTaskIf(times >= 1);
 
 if (times < 3) {
     FormCheck('kat', 'tsukiball');
 } else {
     FormUncheck('kat', 'tsukiball');
 }
+/* Whatever. Just doing it for the shot at random drop.
 if (!DocTest('Crippled!')) {
     var jutsu = 'Bring Down the House Jutsu';
     var jutsuCost = DocReInt(new RegExp(jutsu + ' \\((\\d+) C\\)'));
@@ -481,6 +428,7 @@ if (!DocTest('Crippled!')) {
 } else {
     FormCheck('kat', 'jutsuused', 'none');
 }
+*/
 FormSubmit('kat');
 
 //@NewTask
@@ -493,9 +441,11 @@ TeamChange();
 
 GoPage('village');
 
-// Paperwork or collect
+// Collect
 if (!(DocTest('You are already helping out your Village today')
         || DocTest('You are helping a Village out today'))) {
+    FormSubmit('rescol');
+    /*
     var upkeep = DocReInt(/Current Upkeep: (\d+)%/);
     var paperwork = DocReInt(/Paperwork:\D*(\d+)% Upkeep Tomorrow/);
     dbg('Upkeep detected: ' + upkeep);
@@ -509,6 +459,7 @@ if (!(DocTest('You are already helping out your Village today')
             FormSubmit('rescol');
         }
     }
+    */
 }
 
 // Ingredients, lemonade, rock, library
@@ -521,39 +472,15 @@ if (DocTest('Have some tasty Lemonade!')) {
 }
 if (DocTest('Go to a Black Stones Concert!'))
     FormSubmit('blackstones');
-/* Pointless with max level.
 if (DocTest('Study at the Pandora Library!'))
     FormSubmit('pandtime');
-*/
-if (FormCheck('ramen', 'ramentobuy', 'app'))
-    FormSubmit('ramen');
 
 IncrementTask();
 
-//@NewTask
-//@TaskName: Credit pull
-
-GoPage('marketplace');
-IncrementTaskIf(DocTest('Used Today!'));
-FormSubmit('freepull');
-
-//@NewTask
-//@TaskName: PizzaWitch
-
-GoPage('pizzawitch');
-if (!DocTest("Work a shift on the other Riders' Rides"))
-    FormSubmit('workinback');
-
-var deliveries = DocReInt(/Delivery \((\d+) Remaining\)/);
-IncrementTaskIf(deliveries === 0);
-
-var tips_str = DocRegex(/Current Tips: ([0-9,]+)/, 1).replace(',','');
-var tips = parseInt(tips_str);
-var bribe = DocReInt(/\bBribe[^(]*\(-(\d+) Tips\/Shift/);
-var max_bribes = Math.trunc(tips / bribe);
-FormCheck('doshift', 'shiftbribe', 1);
-FormSetValue('doshift', 'shiftcount', Math.min(deliveries, max_bribes));
-FormSubmit('doshift');
+/*
+if (FormCheck('ramen', 'ramentobuy', 'app'))
+    FormSubmit('ramen');
+*/
 
 //@NewTask
 //@TaskName: Tattoo thing
@@ -564,76 +491,20 @@ IncrementTaskIf(DocTest('Action done today!'));
 FormCheckById('tattootrain', 'tuptat');
 FormSubmit('tattootrain');
 
-//@NewTask
-//@TaskName: Field actions
-
-GoPage('fields');
-
-var store = PlayerStorage('daily_fields', { drawn_essence : false
-                                          , did_actions   : false });
-
-// We either start on the essence field, in which case we want to draw,
-// go to farming field and spend free actions. Or we start on the farming 
-// field and we want to spend actions first to avoid double field change.
-// Persistent storage is required to do this, I think.
-
-if (DocTest('Use Field Oscillator'))
-    FormSubmit('oscillator');
-if (DocTest('Enough has collected to fill a single vial'))
-    FormSubmit('lifestream');
-if (DocTest('No more Essence can be collected today')) {
-    store.drawn_essence = true;
-    IncrementTaskIf(store.did_actions);
-    // ShowMsg('b-d-p'); 
-    SetField('Brilliant', 'Delicious', 'Paradise');
-}
-if ($('form[name=search1]')) {
-    if (!DocTest('Free Actions:')) {
-        store.did_actions = true;
-        IncrementTaskIf(store.drawn_essence);
-        // ShowMsg('b-d-d'); 
-        SetField('Brilliant', 'Delicious', 'Dance Floor');
-    }
-    var free_acts = DocReInt(/Free Actions: (\d+)/);
-    if (free_acts >= 10 && DocTest('Turn MegaActions On')
-            || DocTest('x50 Stamina / FA cost')
-            || free_acts < 10 && DocTest('Turn MegaActions Off')) {
-        FormSubmit('megaactionflip');
-    } else {
-        FormSubmit('search1');
-    }
-}
+IncrementTask();
 
 //@NewTask
-//@TaskName: Nom team
+//@TaskName: Arena stuff
 
-TeamChange('Tsukasa', 'Yuki');
+GoPage('arena');
 
-//@NewTask
-//@TaskName: Nomming
+ShowMsg('Le fights');
 
-GoPage('consumables');
-ShowMsg('Eat things');
+if (DocTest('buy-ins so far today: 0')
+        || DocTest('buy-ins so far today: 1'))
+    FormSubmit('buyfights');
 
-//@NewTask
-//@TaskName: Larry und Haro
+IncrementTaskIf(!DocTest('Fights today: <b>0</b>'));
 
-TeamChange('Larry', 'Haro');
-
-//@NewTask
-//@TaskName: Run missions
-
-GoPage('missions');
-if (LocationTest('missionstart.html')) {
-    if ($('form[name=misforms]'))
-        FormSubmit('misforms');
-    if (DocTest('MegaMissions (Inactive)'))
-        FormSubmit('megamis');
-    FormSubmit('misformwasteland');
-}
-
-if (LocationTest('mission1.html') && DocTest('Only One S-Rank per day!')) {
-    FormSubmit('backmission');
-}
-
-ShowMsg('Smash those hotkeys');
+FormCheck('arenafight', 'megaarena');
+FormSubmit('arenafight');
