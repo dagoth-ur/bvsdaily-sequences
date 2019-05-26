@@ -1,5 +1,9 @@
 //@SequenceName: Cosplay Farming
 
+// TODO list:
+// - Add selecting dealer's room offers (prioritize items not yet in inv).
+// - Maybe add updating the inventory after buying something.
+
 //
 //@SequenceCode
 //
@@ -145,8 +149,9 @@ function parseConMain() {
     // Monies
     var monies = parseInt(
         $('table.constats tbody').children[1].children[3].innerText);
-    // TODO parse flow too
-    var flow = 0;
+    // Flow
+    var flow = parseInt(
+        $('table.constats tbody').children[1].children[7].innerText);
     // Can go to dealer's room?
     var dealerRoomOk = ($('option[value=deal]') != null);
     // Are omnoms available?
@@ -181,8 +186,18 @@ function parseConMain() {
         swapOffers.push({your_piece, your_num, their_piece, their_num
                         ,checkid});
     }
-    // TODO: Did we just get dealer's room offers?
+    // Did we just get dealer's room offers?
     var dealerOffers = [];
+    for (let l of $$('form[name=condroom] label')) {
+        if (!/Cosplay Piece/.test(l.innerText))
+            continue;
+        let [rawset, rawrest] = l.innerText.split('Cosplay Piece');
+        let set = rawset.trim();
+        let price = parseInt(/^\s*(\d+)M/.exec(rawrest)[1]);
+        let part = /[(](\S+) Piece/.exec(rawrest)[1];
+        let checkid = l.getAttribute('for');
+        dealerOffers.push({piece : set + ' ' + part, price, checkid});
+    }
     return {nom, monies, dealerRoomOk, omnomsOk, justBought, swapOffers
            ,dealerOffers, flow};
 }
@@ -244,6 +259,11 @@ var page = recognizePage();
 
 dbg(`We're on page: ${page}`);
 
+if (store.inventory == null) {
+    store.checking_inventory = true;
+    GoPage('billycon');
+}
+
 if (store.checking_inventory && page !== 'constats') {
     GoPage('billycon');
     FormSubmit('charasheet');
@@ -282,8 +302,7 @@ if (page === 'conmain') {
     }
     // Check if we have dealer's offers and also maybe pick
     if (pageData.dealerOffers.length > 0) {
-        // TODO: yeah, this shouldn't be possible right now
-        ShowMsg('Something went terribly wrong');
+        ShowMsg('TODO: do something here');
     }
     // Check if we can go to dealer's room and if there's any point
     if (pageData.dealerRoomOk && pageData.monies >= 5) {
