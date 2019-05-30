@@ -6,7 +6,7 @@
 //{{{1 Utilities
 
 function dbg(...msg) {
-    // console.log(...msg);
+    //console.log(...msg);
 }
 
 function DocRegex(re, idx) {
@@ -21,7 +21,8 @@ function DocRegex(re, idx) {
 }
 
 function DocReInt(re) {
-    return parseInt(DocRegex(re, 1));
+    var str = DocRegex(re, 1).replace(/,/g, '');
+    return parseInt(str);
 }
 
 function arrEq(arr1, arr2) {
@@ -176,6 +177,15 @@ function TeamChange(...team) {
     var t = new TeamPage();
     (new TeamPage()).change(...team);
 }
+
+function TeamTryChange(...team) {
+    GoPage('team');
+    if (FormTest('conteam'))
+        FormSubmit('conteam');
+    var t = new TeamPage();
+    return (new TeamPage()).tryChange(...team);
+}
+
 
 //2}}}
 
@@ -368,6 +378,13 @@ FormCheck('dobfast', 'bingo-b5');
 FormSubmit('dobfast');
 
 //@NewTask
+//@TaskName: Retail bonus
+GoPage('retail');
+IncrementTaskIf(!FormCheck('spendwage', 'buywage', 'rt_pachibuy'));
+FormSubmit('spendwage');
+//ShowMsg('Buy pachinko bonus');
+
+//@NewTask
 //@TaskName: Shorty
 
 TeamChange('Shorty');
@@ -391,6 +408,7 @@ if (LocationTest('partyhouse-pachinkoplay.html')) {
     (function () {
         var regex = /Electrum: (\d+)/;
         var balls = parseInt(regex.exec(document.body.innerHTML)[1]);
+        FormSelect('dropball', 'wheredrop', 2);
         if (FormSetValue('dropball', 'numdrop', Math.min(balls, 1000)))
             FormSubmit('dropball');
     })();
@@ -403,8 +421,10 @@ if (DocTest('You survey the rows of machines, including the ominous one'
     FormSubmit('startpc');
 }
 // Buy balls
-if (DocTest('Buys today: 0'))
+if (DocTest('Buys today: 0')) {
+    FormCheck('buyballs', 'rp_bonus');
     FormSubmit('buyballs');
+}
 // Goto first machine
 if (FormCheckById('playapachi', 'pmach1'))
     FormSubmit('playapachi');
@@ -438,6 +458,7 @@ FormSubmit('summonsummon');
 //@NewTask
 //@TaskName: Strawberry Team
 
+TeamTryChange('Strawberry Lvl. 3', 'Robogirl Lvl. 3');
 TeamChange('Strawberry', 'Shorty', 'Robogirl');
 
 //@NewTask
@@ -445,9 +466,15 @@ TeamChange('Strawberry', 'Shorty', 'Robogirl');
 
 GoPage('arena');
 
-if (DocTest('buy-ins so far today: 0')
-        || DocTest('buy-ins so far today: 1'))
+if (DocTest('buy-ins so far today: 0')) {
+    FormCheck('buytfights', 'buyfights');
+    FormSubmit('buytfights');
+}
+/*
+        || DocTest('buy-ins so far today: 1')
+        || DocTest('buy-ins so far today: 2')
     FormSubmit('buyfights');
+*/
 
 IncrementTaskIf(!DocTest('Fights today: <b>0</b>'));
 
@@ -465,7 +492,7 @@ if (!DocTest("You had this Kaiju's drop"))
 var times = DocReInt(/times fought today: (\d+)/);
 IncrementTaskIf(times >= 6);
 
-if (times < 3) {
+if (times < 4) {
     FormCheck('kat', 'tsukiball');
 } else {
     FormUncheck('kat', 'tsukiball');
@@ -514,6 +541,7 @@ if (!(DocTest('You are already helping out your Village today')
 // Ingredients, lemonade, rock, library
 if (!DocTest('Already Searched Today!')) {
     FormCheck('ingredienthunt', 'ingredientplace', 'forest');
+    FormCheck('ingredienthunt', 'gothgoth');
     FormSubmit('ingredienthunt');
 }
 if (DocTest('Have some tasty Lemonade!')) {
@@ -549,7 +577,7 @@ IncrementTaskIf(deliveries === 0);
 
 var tips_str = DocRegex(/Current Tips: ([0-9,]+)/, 1).replace(',','');
 var tips = parseInt(tips_str);
-var bribe = DocReInt(/\bBribe[^(]*\(-(\d+) Tips\/Shift/);
+var bribe = DocReInt(/\bBribe[^(]*\(-([\d,]+) Tips\/Shift/);
 var max_bribes = Math.trunc(tips / bribe);
 FormCheck('doshift', 'shiftbribe', 1);
 FormSetValue('doshift', 'shiftcount', Math.min(deliveries, max_bribes));
@@ -614,6 +642,11 @@ TeamChange('Tsukasa', 'Yuki');
 
 GoPage('consumables');
 ShowMsg('Eat things');
+
+//@NewTask
+//@TaskName: Retail
+GoPage('retail');
+ShowMsg('Do the thing.');
 
 //@NewTask
 //@TaskName: Larry und Haro

@@ -23,7 +23,8 @@ function DocRegex(re, idx) {
 }
 
 function DocReInt(re) {
-    return parseInt(DocRegex(re, 1));
+    var str = DocRegex(re, 1).replace(/,/g, '');
+    return parseInt(str);
 }
 
 function arrEq(arr1, arr2) {
@@ -361,6 +362,7 @@ if (LocationTest('partyhouse-pachinkoplay.html')) {
     (function () {
         var regex = /Electrum: (\d+)/;
         var balls = parseInt(regex.exec(document.body.innerHTML)[1]);
+        FormSelect('dropball', 'wheredrop', 2);
         if (FormSetValue('dropball', 'numdrop', Math.min(balls, 1000)))
             FormSubmit('dropball');
     })();
@@ -383,7 +385,11 @@ if (FormCheckById('playapachi', 'pmach1'))
 //@TaskName: Lottery
 GoPage('ph_lottery');
 
-var ph_ryo = DocReInt(/Free Party House Ryo: (\d+)/);
+if (DocTest('You can hand in a Roll of Tickets'))
+    FormSubmit('elt');
+var ph_ryo_str = DocRegex(/Free Party House Ryo: ([\d,]+)/, 1)
+    .replace(/,/g, '');
+var ph_ryo = parseInt(ph_ryo_str);
 IncrementTaskIf(ph_ryo <= 0);
 var ticket_cost = DocReInt(/Tickets are (\d+) Ryo a pop./);
 FormSetValue('el', 'tix2buy', Math.ceil(ph_ryo / ticket_cost));
@@ -498,10 +504,10 @@ IncrementTask();
 
 GoPage('arena');
 
-ShowMsg('Le fights');
-
-if (DocTest('buy-ins so far today: 0')
+/*if (DocTest('buy-ins so far today: 0')
         || DocTest('buy-ins so far today: 1'))
+    FormSubmit('buyfights');*/
+if (DocTest('buy-ins so far today: 0'))
     FormSubmit('buyfights');
 
 IncrementTaskIf(!DocTest('Fights today: <b>0</b>'));

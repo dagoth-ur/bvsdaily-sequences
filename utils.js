@@ -30,7 +30,8 @@ function DocRegex(re, idx) {
 }
 
 function DocReInt(re) {
-    return parseInt(DocRegex(re, 1));
+    var str = DocRegex(re, 1).replace(/,/g, '');
+    return parseInt(str);
 }
 
 function arrEq(arr1, arr2) {
