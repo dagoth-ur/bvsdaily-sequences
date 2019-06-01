@@ -1,5 +1,20 @@
 //@SequenceName: Cosplay Farming
 
+// What this will do:
+// - Go to BillyCon
+// - Register using options that maximize available monies
+// - Pack duplicate cosplays pieces and fill the rest of available space with
+//   omnoms.   
+// - At the actual con, it will go to Dealer's Room when possible and there
+//   are still monies.
+// - It will buy whatever cosplay piece is available while prioritizing
+//   those not already owned.
+// - When hungry, it will eat omnoms or go to food court.
+// - When stuffsed, it will crash in room.
+// - When Dealer's Room isn't available, it will do cosplay swaps with
+//   a hopefully reasonable choice of filters and using flow when available.
+//   It will only pick offers of exchanging redundant stuff for new stuff.
+
 //@SequenceCode
 
 // If this is set to 1, no actions will be taken. 
