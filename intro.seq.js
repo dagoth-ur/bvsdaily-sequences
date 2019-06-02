@@ -408,7 +408,7 @@ if (LocationTest('partyhouse-pachinkoplay.html')) {
     (function () {
         var regex = /Electrum: (\d+)/;
         var balls = parseInt(regex.exec(document.body.innerHTML)[1]);
-        FormSelect('dropball', 'wheredrop', 2);
+        FormSelect('dropball', 'wheredrop', 1);
         if (FormSetValue('dropball', 'numdrop', Math.min(balls, 1000)))
             FormSubmit('dropball');
     })();

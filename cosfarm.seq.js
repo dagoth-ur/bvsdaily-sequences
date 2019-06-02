@@ -189,6 +189,33 @@ function doConPacking() {
     FormAction('conroom');
 }
 
+// TODO: test if this works at noon and at midnight
+function parseTime(timeStr) {
+    if (timeStr === 'Noon') {
+        return 12;
+    } else if (timeStr === 'Midnight') {
+        return 24;
+    } else if (timeStr === 'LATE') {
+        return 25;
+    } else {
+        let [hour, dayhalf] = timeStr.split(' ');
+        return parseInt(hour) + 12 * (dayhalf === 'PM');
+    }
+}
+
+function hoursTillEnd(day, timeStr) {
+    const dayRanges = [[12, 25], [9, 25], [9, 17]];
+    var hoursLeft = 0;
+    var time = parseTime(timeStr);
+    dbg(2, `Parsed ${timeStr} as ${time}`);
+    for (let i = day - 1; i < 3; ++i) {
+        time = Math.max(time, dayRanges[i][0]);
+        hoursLeft += dayRanges[i][1] - time;
+        time = 0;
+    }
+    return hoursLeft;
+}
+
 // Parsing main con page
 function parseConMain() {
     dbg(1, '==== Parsing main con page ====');
@@ -201,7 +228,12 @@ function parseConMain() {
     // Flow
     var flow = parseInt(
         $('table.constats tbody').children[1].children[7].innerText);
-    dbg(1, `Nom: ${nom}; Monies: ${monies}; Flow: ${flow}`); 
+    var day = parseInt(
+        $('table.constats tbody').children[1].children[5].innerText);
+    var timeStr = $('table.constats tbody').children[1].children[6].innerText;
+    var hoursLeft = hoursTillEnd(day, timeStr);
+    dbg(1, `Nom: ${nom}; Monies: ${monies}; Flow: ${flow};`
+           +` Day: ${day}; Time: ${timeStr}; Con hours left: ${hoursLeft}`); 
     // Can go to dealer's room?
     var dealerRoomOk = ($('option[value=deal]') != null);
     // Are omnoms available?
@@ -265,7 +297,8 @@ function parseConMain() {
         dealerOffers.push({piece, price, checkid});
     }
     return { nom, monies, flow, dealerRoomOk, omnomsOk, swapOffers
-           , dealerOffers, justSwapped, justBought, stuffsed };
+           , dealerOffers, justSwapped, justBought, stuffsed
+           , day, timeStr, hoursLeft };
 }
 
 function doConMain() {
@@ -366,11 +399,9 @@ function doConMain() {
         // But if a large proportion of cosplay pieces we're currently
         // carrying are such that we own at least 2 of them, then this might
         // be a waste of flow.
-        // For now, here's a dumb check if we're carrying at least one
-        // non-redundant piece.
-        // Also, this really depends on the inventory updating code working
-        // correctly. 
-        if (store.uniquePacked > 0) {
+        // So, using flow is delayed until the last moment when it can still
+        // be spent. Some margin of error could be added here.
+        if (pageData.flow >= pageData.hoursLeft) {
             dbg(1, '  Using flow');
             FormCheck('conaction', 'useflow');
             FormCheck('conaction', 'cosswap-c');
@@ -386,12 +417,20 @@ function doConMain() {
 // Stuff for figuring out where we are
 //
 
+// TODO: next weekend test if conlate and connextday work
 function recognizePage() {
     if (LocationTest('/bvs/billycon-register.html')) {
         return 'conregister';
     } else if (LocationTest('/bvs/billycon.html')) {
-        if (DocTest('Available Actions')) {
+        if (DocRegex(/Leave the Con: Gives Fond Memories Effect/)) {
+            return 'conleaving';
+        } else if (DocTest('The Con is done for the night!')) {
+            return 'conlate';
+        } else if (DocTest('Available Actions')) {
             return 'conmain';
+        } else if (DocTest('You take off from the convention center'
+                          +' back to the real world')) {
+            return 'confinished';
         } else if (DocTest('Choose your Convention Room!')) {
             return 'conprep';
         } else if (DocRegex(
@@ -402,6 +441,9 @@ function recognizePage() {
         } else if (DocTest('You enter the con, ready for anything!')) {
             // Just how many dumb confirmation screens are there
             return 'conenter';
+        } else if (DocRegex(/Continue to day \d/)) {
+            // A lot, apparently
+            return 'connextday';
         }
     } else if (LocationTest('/bvs/billycon-character.html')) {
         return 'constats';
@@ -416,6 +458,9 @@ function recognizePage() {
 var currentPage = recognizePage();
 dbg(1, `Identifying current page: ${currentPage}`);
 
+// XXX: needs to be tested next weekend
+IncrementTaskIf(currentPage === 'confinished' || currentPage === 'conlate');
+
 if (currentPage === 'conregister') {
     if (DocTest('Get to the Con!'))
         FormSubmit('gotocon');
@@ -423,17 +468,23 @@ if (currentPage === 'conregister') {
 }
 
 if (currentPage === 'conprep') {
-    // Away game 
-    FormCheck('conroom', 'distance', 1);
-    // Sardines
-    FormCheck('conroom', 'roomies', 1);
-    // Suck It Up
-    FormCheck('conroom', 'waitline', 1);
+    // XXX: needs to be tested next weekend
+    // Con hotel
+    FormCheck('conroom', 'distance', 2);
+    // Own room
+    FormCheck('conroom', 'roomies', 2);
+    // Jump the line
+    FormCheck('conroom', 'waitline', 2);
     FormAction('conroom');
 }
 
 if (currentPage === 'conpack') {
     doConPacking();
+}
+
+if (currentPage === 'connextday') {
+    // XXX: needs to be tested next weekend
+    FormAction('conroom');
 }
 
 if (currentPage === 'conconfirm' || currentPage === 'conenter') {
@@ -442,6 +493,18 @@ if (currentPage === 'conconfirm' || currentPage === 'conenter') {
 
 if (currentPage === 'conmain') {
     doConMain();
+}
+
+if (currentPage === 'conleaving') {
+    let inp = $('input[type=radio][value=lmbargains]');
+    if (inp) {
+        dbg(1, 'Last minute bargain');
+        inp.checked = true;
+        FormAction('conaction');
+    }
+    // Last minute wanders?
+    FormCheck('conaction', 'conaction', 'gohome');
+    FormAction('conaction');
 }
 
 GoPage('billycon');
