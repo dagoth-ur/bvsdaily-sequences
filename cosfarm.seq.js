@@ -483,8 +483,8 @@ if (currentPage === 'conpack') {
 }
 
 if (currentPage === 'connextday') {
-    // XXX: needs to be tested next weekend
-    FormAction('conroom');
+    // XXX: blah, still needs to be tested next weekend
+    FormAction('conroom1');
 }
 
 if (currentPage === 'conconfirm' || currentPage === 'conenter') {
