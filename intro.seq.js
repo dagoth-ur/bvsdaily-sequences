@@ -189,6 +189,38 @@ function TeamTryChange(...team) {
 
 //2}}}
 
+//{{{ ConsumablesPage
+class ConsumablesPage {
+    constructor() {
+        var foodRows = $$('#oneusediv tr').slice(1);
+        this.foods = {};
+        for (let row of foodRows) {
+            var radio = $('input', row.children[0]);
+            var name = $('span', row.children[0]).innerText;
+            var num = parseInt(row.children[1].innerText);
+            var app = parseInt(row.children[2].innerText);
+            this.foods[name] = {radio, num, app};
+        }
+        this.app = DocReInt(/Appetite Remaining: (\d+)/);
+        dbg(this);
+    }
+
+    eat(food, max=20) {
+        if (!this.foods.hasOwnProperty(food))
+            return;
+        if (this.foods[food].app > this.app)
+            return;
+        this.foods[food].radio.checked = true;
+        $('input[name=onetimenumber]').value = 20;
+        FormSubmit('otime');
+    }
+}
+
+function Eat(food, max=20) {
+    (new ConsumablesPage).eat(food, max);
+}
+//}}}
+
 //{{{ Extra actions
 function FormUncheck(strFormName, strInputName, strInputValue) {
     var strXPath = "";
@@ -448,12 +480,14 @@ if (DocTest('You are on Ball')) {
 
 IncrementTask();
 
-//@NewTask
+/* Pointlessu
+//NewTask
 //@TaskName: Summoning
 
 GoPage('summons');
 IncrementTaskIf(!FormCheck('summonsummon', 'summonname', 'Sickle Weasel'))
 FormSubmit('summonsummon');
+*/
 
 //@NewTask
 //@TaskName: Strawberry Team
@@ -481,7 +515,8 @@ IncrementTaskIf(!DocTest('Fights today: <b>0</b>'));
 FormCheck('arenafight', 'megaarena');
 FormSubmit('arenafight');
 
-//@NewTask
+/* 11-tails is summoned. Can't do this for nao.
+//NewTask
 //@TaskName: Fight kaiju
 
 GoPage('kaiju');
@@ -509,16 +544,23 @@ if (!DocTest('Crippled!')) {
     FormCheck('kat', 'jutsuused', 'none');
 }
 FormSubmit('kat');
+*/
 
-//@NewTask
+/* Black Stones bonuses aren't worth the extra hassle.
+//NewTask
 //@TaskName: Switching to solo
 
 TeamChange();
+*/
 
 //@NewTask
 //@TaskName: Village actions
 
 GoPage('village');
+
+// Bodacious park
+if (DocTest('Check out Bodacious Park!'))
+    FormSubmit('bpark');
 
 // Paperwork or collect
 if (!(DocTest('You are already helping out your Village today')
@@ -538,7 +580,7 @@ if (!(DocTest('You are already helping out your Village today')
     }
 }
 
-// Ingredients, lemonade, rock, library
+// Ingredients, lemonade, library
 if (!DocTest('Already Searched Today!')) {
     FormCheck('ingredienthunt', 'ingredientplace', 'forest');
     FormCheck('ingredienthunt', 'gothgoth');
@@ -547,8 +589,10 @@ if (!DocTest('Already Searched Today!')) {
 if (DocTest('Have some tasty Lemonade!')) {
     FormSubmit('lemonaid');
 }
+/* Nope
 if (DocTest('Go to a Black Stones Concert!'))
     FormSubmit('blackstones');
+*/
 /* Pointless with max level.
 if (DocTest('Study at the Pandora Library!'))
     FormSubmit('pandtime');
@@ -558,12 +602,14 @@ if (FormCheck('ramen', 'ramentobuy', 'app'))
 
 IncrementTask();
 
-//@NewTask
+/* Pointless with so few moniez
+//NewTask
 //@TaskName: Credit pull
 
 GoPage('marketplace');
 IncrementTaskIf(DocTest('Used Today!'));
 FormSubmit('freepull');
+*/
 
 //@NewTask
 //@TaskName: PizzaWitch
@@ -635,13 +681,15 @@ if ($('form[name=search1]')) {
 //@NewTask
 //@TaskName: Nom team
 
-TeamChange('Tsukasa', 'Yuki');
+// TeamChange('Tsukasa', 'Yuki');
+TeamChange('TACOS', 'Tsukasa', 'Cipher');
 
 //@NewTask
 //@TaskName: Nomming
 
 GoPage('consumables');
-ShowMsg('Eat things');
+Eat('TACO');
+IncrementTask();
 
 //@NewTask
 //@TaskName: Retail

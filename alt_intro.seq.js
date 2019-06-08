@@ -8,7 +8,7 @@
 //{{{1 Utilities
 
 function dbg(...msg) {
-    // console.log(...msg);
+    console.log(...msg);
 }
 
 function DocRegex(re, idx) {
@@ -181,6 +181,38 @@ function TeamChange(...team) {
 }
 
 //2}}}
+
+//{{{ ConsumablesPage
+class ConsumablesPage {
+    constructor() {
+        var foodRows = $$('#oneusediv tr').slice(1);
+        this.foods = {};
+        for (let row of foodRows) {
+            var radio = $('input', row.children[0]);
+            var name = $('span', row.children[0]).innerText;
+            var num = parseInt(row.children[1].innerText);
+            var app = parseInt(row.children[2].innerText);
+            this.foods[name] = {radio, num, app};
+        }
+        this.app = DocReInt(/Appetite Remaining: (\d+)/);
+        dbg(this);
+    }
+
+    eat(food, max=20) {
+        if (!this.foods.hasOwnProperty(food))
+            return;
+        if (this.foods[food].app > this.app)
+            return;
+        this.foods[food].radio.checked = true;
+        $('input[name=onetimenumber]').value = 20;
+        FormSubmit('otime');
+    }
+}
+
+function Eat(food, max=20) {
+    (new ConsumablesPage).eat(food, max);
+}
+//}}}
 
 //{{{ Extra actions
 function FormUncheck(strFormName, strInputName, strInputValue) {
@@ -381,7 +413,8 @@ if (DocTest('Buys today: 0'))
 if (FormCheckById('playapachi', 'pmach1'))
     FormSubmit('playapachi');
 
-//@NewTask
+/* Making an alt was a Mistake
+//NewTask
 //@TaskName: Lottery
 GoPage('ph_lottery');
 
@@ -395,7 +428,7 @@ var ticket_cost = DocReInt(/Tickets are (\d+) Ryo a pop./);
 FormSetValue('el', 'tix2buy', Math.ceil(ph_ryo / ticket_cost));
 FormSubmit('el');
 
-//@NewTask
+//NewTask
 //@TaskName: First Loser
 
 GoPage('ph_firstloser');
@@ -403,17 +436,21 @@ IncrementTaskIf(DocTest('Entered!')
                 || DocRegex(/This IP has already entered/));
 FormSetValue('losers', 'loser_entry', 500);
 FormSubmit('losers');
+*/
 
-//@NewTask
+/*
+//NewTask
 //@TaskName: Fight kaiju
 
 GoPage('kaiju');
+*/
 
 /* Terri not available.
 if (!DocTest("You had this Kaiju's drop"))
     ShowMsg("ZOMG, drop you don't have yet. Do this manually.");
 */
 
+/*
 var times = DocReInt(/times fought today: (\d+)/);
 IncrementTaskIf(times >= 1);
 
@@ -422,6 +459,8 @@ if (times < 3) {
 } else {
     FormUncheck('kat', 'tsukiball');
 }
+*/
+
 /* Whatever. Just doing it for the shot at random drop.
 if (!DocTest('Crippled!')) {
     var jutsu = 'Bring Down the House Jutsu';
@@ -435,12 +474,7 @@ if (!DocTest('Crippled!')) {
     FormCheck('kat', 'jutsuused', 'none');
 }
 */
-FormSubmit('kat');
-
-//@NewTask
-//@TaskName: Switching to solo
-
-TeamChange();
+// FormSubmit('kat');
 
 //@NewTask
 //@TaskName: Village actions
@@ -476,26 +510,15 @@ if (!DocTest('Already Searched Today!')) {
 if (DocTest('Have some tasty Lemonade!')) {
     FormSubmit('lemonaid');
 }
+/*
 if (DocTest('Go to a Black Stones Concert!'))
     FormSubmit('blackstones');
+*/
 if (DocTest('Study at the Pandora Library!'))
     FormSubmit('pandtime');
 
-IncrementTask();
-
-/*
 if (FormCheck('ramen', 'ramentobuy', 'app'))
     FormSubmit('ramen');
-*/
-
-//@NewTask
-//@TaskName: Tattoo thing
-// Grinding for ze trophy
-
-GoPage('tattoo');
-IncrementTaskIf(DocTest('Action done today!'));
-FormCheckById('tattootrain', 'tuptat');
-FormSubmit('tattootrain');
 
 IncrementTask();
 
@@ -514,3 +537,11 @@ IncrementTaskIf(!DocTest('Fights today: <b>0</b>'));
 
 FormCheck('arenafight', 'megaarena');
 FormSubmit('arenafight');
+
+//@NewTask
+//@TaskName: Eating
+
+GoPage('consumables');
+
+Eat('TACO');
+IncrementTask();
