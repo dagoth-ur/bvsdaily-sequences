@@ -438,19 +438,16 @@ FormSetValue('losers', 'loser_entry', 500);
 FormSubmit('losers');
 */
 
-/*
-//NewTask
+//@NewTask
 //@TaskName: Fight kaiju
 
 GoPage('kaiju');
-*/
 
 /* Terri not available.
 if (!DocTest("You had this Kaiju's drop"))
     ShowMsg("ZOMG, drop you don't have yet. Do this manually.");
 */
 
-/*
 var times = DocReInt(/times fought today: (\d+)/);
 IncrementTaskIf(times >= 1);
 
@@ -459,7 +456,6 @@ if (times < 3) {
 } else {
     FormUncheck('kat', 'tsukiball');
 }
-*/
 
 /* Whatever. Just doing it for the shot at random drop.
 if (!DocTest('Crippled!')) {
@@ -474,7 +470,7 @@ if (!DocTest('Crippled!')) {
     FormCheck('kat', 'jutsuused', 'none');
 }
 */
-// FormSubmit('kat');
+FormSubmit('kat');
 
 //@NewTask
 //@TaskName: Village actions
@@ -514,8 +510,10 @@ if (DocTest('Have some tasty Lemonade!')) {
 if (DocTest('Go to a Black Stones Concert!'))
     FormSubmit('blackstones');
 */
+/* Maxed out stats
 if (DocTest('Study at the Pandora Library!'))
     FormSubmit('pandtime');
+*/
 
 if (FormCheck('ramen', 'ramentobuy', 'app'))
     FormSubmit('ramen');

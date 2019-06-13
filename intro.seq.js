@@ -6,7 +6,7 @@
 //{{{1 Utilities
 
 function dbg(...msg) {
-    //console.log(...msg);
+    console.log(...msg);
 }
 
 function DocRegex(re, idx) {
@@ -480,14 +480,12 @@ if (DocTest('You are on Ball')) {
 
 IncrementTask();
 
-/* Pointlessu
-//NewTask
+//@NewTask
 //@TaskName: Summoning
 
 GoPage('summons');
 IncrementTaskIf(!FormCheck('summonsummon', 'summonname', 'Sickle Weasel'))
 FormSubmit('summonsummon');
-*/
 
 //@NewTask
 //@TaskName: Strawberry Team
@@ -515,8 +513,7 @@ IncrementTaskIf(!DocTest('Fights today: <b>0</b>'));
 FormCheck('arenafight', 'megaarena');
 FormSubmit('arenafight');
 
-/* 11-tails is summoned. Can't do this for nao.
-//NewTask
+//@NewTask
 //@TaskName: Fight kaiju
 
 GoPage('kaiju');
@@ -544,7 +541,6 @@ if (!DocTest('Crippled!')) {
     FormCheck('kat', 'jutsuused', 'none');
 }
 FormSubmit('kat');
-*/
 
 /* Black Stones bonuses aren't worth the extra hassle.
 //NewTask
@@ -630,15 +626,6 @@ FormSetValue('doshift', 'shiftcount', Math.min(deliveries, max_bribes));
 FormSubmit('doshift');
 
 //@NewTask
-//@TaskName: Tattoo thing
-// Grinding for ze trophy
-
-GoPage('tattoo');
-IncrementTaskIf(DocTest('Action done today!'));
-FormCheckById('tattootrain', 'tuptat');
-FormSubmit('tattootrain');
-
-//@NewTask
 //@TaskName: Field actions
 
 GoPage('fields');
@@ -679,6 +666,43 @@ if ($('form[name=search1]')) {
 }
 
 //@NewTask
+//@TaskName: Number One
+
+if (DocTest('The two entrants stand at opposite ends of the dais.'))
+    FormSubmit('playn1');
+if (!LocationTest('/bvs/numberone.html'))
+    GoMenuPage('Number One');
+
+var rows = $('form[name=entertourney] tbody');
+var t1tix = 0;
+if (rows.children.length > 0) {
+    let re = /Tickets available: (\d+)/;
+    t1tix = parseInt(re.exec(rows.children[0].innerText)[1]);
+}
+var t2tix = 0;
+if (rows.children.length > 1) {
+    let re = /Tickets available: (\d+)/;
+    t2tix = parseInt(re.exec(rows.children[1].innerText)[1]);
+}
+var t0tix = DocReInt(/Skirmishes joinable: \d+. Left: (\d+)/);
+if (t0tix > 0) {
+    FormSetValue('tier0mill', 'tier0mill', t0tix);
+    FormSubmit('tier0mill');
+}
+if (t1tix > 0) {
+    FormSetValue('tier1mill', 'tier1mill', t1tix);
+    FormSubmit('tier1mill');
+}
+/* Unnecessary
+if (t2tix > 0) {
+    FormSetValue('tier2mill', 'tier2mill', t2tix);
+    FormSubmit('tier2mill');
+}
+*/
+
+IncrementTask();
+
+//@NewTask
 //@TaskName: Nom team
 
 // TeamChange('Tsukasa', 'Yuki');
@@ -696,12 +720,13 @@ IncrementTask();
 GoPage('retail');
 ShowMsg('Do the thing.');
 
-//@NewTask
+/*
+//NewTask
 //@TaskName: Larry und Haro
 
 TeamChange('Larry', 'Haro');
 
-//@NewTask
+//NewTask
 //@TaskName: Run missions
 
 GoPage('missions');
@@ -718,3 +743,4 @@ if (LocationTest('mission1.html') && DocTest('Only One S-Rank per day!')) {
 }
 
 ShowMsg('Smash those hotkeys');
+*/
