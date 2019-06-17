@@ -55,38 +55,6 @@ function BvSPlayerId() {
     return $('input[name=player]').value;
 }
 
-//
-// Stuff for convenient local storage access
-//
-function StorageProxy(localstorage_prefix) {
-    var handler = {
-        set(target, prop, newval) {
-            dbg(2, `Storage: Setting ${localstorage_prefix}.${prop} to:`, 
-                newval);
-            localStorage.setItem(`${localstorage_prefix}.${prop}`, 
-                                 JSON.stringify(newval));
-            return true;
-        },
-        get(target, prop) {
-            var ret = JSON.parse(
-                localStorage.getItem(`${localstorage_prefix}.${prop}`));
-            dbg(2, `Storage: Getting from ${localstorage_prefix}.${prop}:`,
-                ret);
-            return ret;
-        },
-        deleteProperty(target, prop) {
-            dbg(2, `Storage: Removing ${localstorage_prefix}.${prop}`);
-            localStorage.removeItem(`${localstorage_prefix}.${prop}`);
-            return true;
-        }
-    };
-    return new Proxy({}, handler);
-}
-
-function ScriptStorage() {
-    return StorageProxy('cosplay-farmer-' + BvSPlayerId());
-}
-
 // 
 // XPath and QuerySelector helpers
 //
@@ -179,13 +147,6 @@ function doConPacking() {
     // Filling remaining space with noms
     FormSetValue('conroom', 'pack-xf', 
                  Math.min(3, Math.floor(spaceLeft / 2)));
-    var store = ScriptStorage();
-    // Remember this for later
-    store.inventory = inventoryFromList(info.list);
-    // We might want to track how many non-duplicates we have
-    // as the con progresses.
-    store.totalPacked = packed.length;
-    store.uniquePacked = 0;
     FormAction('conroom');
 }
 
@@ -289,12 +250,13 @@ function parseConMain() {
         }
         let [rawset, rawrest] = l.innerText.split('Cosplay Piece');
         let set = rawset.trim();
-        let price = parseInt(/^\s*(\d+)M/.exec(rawrest)[1]);
+        let owned = rawrest.includes('(owned!)');
+        let price = parseInt(/\s*(\d+)M/.exec(rawrest)[1]);
         let part = /[(](\S+) Piece/.exec(rawrest)[1];
         let checkid = l.getAttribute('for');
         let piece = set + ' ' + part;
-        dbg(1, `Parsed: ${piece} (price: ${price})`);
-        dealerOffers.push({piece, price, checkid});
+        dbg(1, `Parsed: ${piece} (price: ${price}, owned: ${owned})`);
+        dealerOffers.push({piece, price, checkid, owned});
     }
     return { nom, monies, flow, dealerRoomOk, omnomsOk, swapOffers
            , dealerOffers, justSwapped, justBought, stuffsed
@@ -303,34 +265,6 @@ function parseConMain() {
 
 function doConMain() {
     var pageData = parseConMain();
-    var store = ScriptStorage();
-    if (!$('#cosplay-farmer-did-inv-update')
-            && (pageData.justSwapped || pageData.justBought)) {
-        dbg(1, '---- Updating inventory info ----');
-        if (pageData.justSwapped) {
-            // Assumption that we only swap for new things
-            // We don't know what we swapped, so inventory info will grow
-            // inaccurate over time.
-            store.uniquePacked += 1;
-        } else {
-            let piece = pageData.justBought;
-            let inv = store.inventory || {};
-            let have = inv[piece] || 0;
-            store.totalPacked += 1;
-            if (have++ === 0) {
-                store.uniquePacked += 1;
-            } else {
-                store.uniquePacked -= 1;
-            }
-            inv[piece] = have;
-            store.inventory = inv;
-        }
-        // Put a marker into the DOM to avoid updating several times
-        let marker_el = document.createElement('span');
-        marker_el.setAttribute('id', 'cosplay-farmer-did-inv-update');
-        marker_el.style.display = 'none';
-        document.body.appendChild(marker_el);
-    }
     dbg(1, '---- Deciding what to do ----');
     // Check if we have swap offers and maybe pick a good one
     if (pageData.swapOffers.length > 0) {
@@ -345,14 +279,8 @@ function doConMain() {
     }
     // Check if we have dealer's offers and also maybe pick
     if (pageData.dealerOffers.length > 0) {
-        let chosenOffer = pageData.dealerOffers[0];
-        for (let off of pageData.dealerOffers) {
-            // Prefer things we don't have
-            if (!(store.inventory || {})[off.piece]) {
-                chosenOffer = off;
-                break;
-            }
-        }
+        let chosenOffer = (pageData.dealerOffers.find((o) => !o.owned) 
+                           || pageData.dealerOffers[0]);
         dbg(1, `Buying ${chosenOffer.piece}`);
         $(`#${chosenOffer.checkid}`).checked = true;
         FormAction('condroom');
@@ -441,7 +369,7 @@ function recognizePage() {
         } else if (DocTest('You enter the con, ready for anything!')) {
             // Just how many dumb confirmation screens are there
             return 'conenter';
-        } else if (DocRegex(/Continue to day \d/)) {
+        } else if (DocRegex(/Continue to Day \d/)) {
             // A lot, apparently
             return 'connextday';
         }
@@ -502,7 +430,12 @@ if (currentPage === 'conleaving') {
         inp.checked = true;
         FormAction('conaction');
     }
-    // Last minute wanders?
+    inp = $('input[type=radio][value=wander]');
+    if (inp && !inp.disabled) {
+        dbg(1, 'Last minute wander');
+        inp.checked = true;
+        FormAction('conaction');
+    }
     FormCheck('conaction', 'conaction', 'gohome');
     FormAction('conaction');
 }

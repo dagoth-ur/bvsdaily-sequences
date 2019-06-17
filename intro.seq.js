@@ -412,9 +412,11 @@ FormSubmit('dobfast');
 //@NewTask
 //@TaskName: Retail bonus
 GoPage('retail');
-IncrementTaskIf(!FormCheck('spendwage', 'buywage', 'rt_pachibuy'));
-FormSubmit('spendwage');
-//ShowMsg('Buy pachinko bonus');
+if (FormCheck('spendwage', 'buywage', 'rt_pachibuy'))
+    FormSubmit('spendwage');
+if (FormCheck('spendwage', 'buywage', 'rt_juicewage'))
+    FormSubmit('spendwage');
+IncrementTask();
 
 //@NewTask
 //@TaskName: Shorty
@@ -497,6 +499,11 @@ TeamChange('Strawberry', 'Shorty', 'Robogirl');
 //@TaskName: Arena stuff
 
 GoPage('arena');
+
+/* Not worth it. Rather save for trailmixes.
+if (FormCheck('buyreward', 'arenatobuy', 16))
+    FormSubmit('buyreward');
+*/
 
 if (DocTest('buy-ins so far today: 0')) {
     FormCheck('buytfights', 'buyfights');
@@ -621,8 +628,9 @@ var tips_str = DocRegex(/Current Tips: ([0-9,]+)/, 1).replace(',','');
 var tips = parseInt(tips_str);
 var bribe = DocReInt(/\bBribe[^(]*\(-([\d,]+) Tips\/Shift/);
 var max_bribes = Math.trunc(tips / bribe);
-FormCheck('doshift', 'shiftbribe', 1);
-FormSetValue('doshift', 'shiftcount', Math.min(deliveries, max_bribes));
+FormCheck('doshift', 'shiftbribe', 0); // No bribe
+//FormSetValue('doshift', 'shiftcount', Math.min(deliveries, max_bribes));
+FormSetValue('doshift', 'shiftcount', deliveries);
 FormSubmit('doshift');
 
 //@NewTask
