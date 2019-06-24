@@ -6,7 +6,7 @@
 //{{{1 Utilities
 
 function dbg(...msg) {
-    console.log(...msg);
+    //console.log(...msg);
 }
 
 function DocRegex(re, idx) {
@@ -676,6 +676,8 @@ if ($('form[name=search1]')) {
 //@NewTask
 //@TaskName: Number One
 
+ShowMsg('Do thing');
+/*
 if (DocTest('The two entrants stand at opposite ends of the dais.'))
     FormSubmit('playn1');
 if (!LocationTest('/bvs/numberone.html'))
@@ -700,7 +702,7 @@ if (t0tix > 0) {
 if (t1tix > 0) {
     FormSetValue('tier1mill', 'tier1mill', t1tix);
     FormSubmit('tier1mill');
-}
+}*/
 /* Unnecessary
 if (t2tix > 0) {
     FormSetValue('tier2mill', 'tier2mill', t2tix);
